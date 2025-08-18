@@ -1,0 +1,107 @@
+# Configuration Caddy pour Lab Creator avec SSL/TLS automatique
+# Pour le développement local, utiliser localhost
+# Pour la production, remplacer par votre domaine
+
+# Configuration pour le développement local (HTTP)
+localhost:80 {
+    # Redirection vers HTTPS
+    redir https://localhost:443{uri}
+}
+
+# Configuration HTTPS avec certificat auto-signé pour le développement
+localhost:443 {
+    # Certificat auto-signé pour le développement local
+    tls internal
+    
+    # Proxy vers l'application Flask
+    reverse_proxy /api/* localhost:5000
+    
+    # Proxy WebSocket pour les connexions VNC/RDP
+    reverse_proxy /ws/* localhost:8765 {
+        header_up Upgrade {>Upgrade}
+        header_up Connection {>Connection}
+    }
+    
+    # Servir les fichiers statiques
+    handle_path /static/* {
+        root * /home/ubuntu/src/static
+        file_server
+    }
+    
+    # Page principale et routes de l'application
+    reverse_proxy localhost:5000
+    
+    # Headers de sécurité
+    header {
+        # HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # XSS Protection
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        # CSP pour permettre WebSocket et ressources locales
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; connect-src 'self' ws: wss:; img-src 'self' data:;"
+    }
+    
+    # Logs
+    log {
+        output file /var/log/caddy/lab-creator.log
+        format json
+    }
+}
+
+# Configuration pour la production (remplacer your-domain.com par votre domaine)
+# your-domain.com {
+#     # Let's Encrypt automatique
+#     tls {
+#         email admin@your-domain.com
+#     }
+#     
+#     # Même configuration que localhost mais avec certificat Let's Encrypt
+#     reverse_proxy /api/* localhost:5000
+#     reverse_proxy /ws/* localhost:8765 {
+#         header_up Upgrade {>Upgrade}
+#         header_up Connection {>Connection}
+#     }
+#     
+#     handle_path /static/* {
+#         root * /home/ubuntu/src/static
+#         file_server
+#     }
+#     
+#     reverse_proxy localhost:5000
+#     
+#     header {
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+#         X-Content-Type-Options "nosniff"
+#         X-Frame-Options "SAMEORIGIN"
+#         X-XSS-Protection "1; mode=block"
+#         Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; connect-src 'self' ws: wss:; img-src 'self' data:;"
+#     }
+#     
+#     log {
+#         output file /var/log/caddy/lab-creator-prod.log
+#         format json
+#     }
+# }
+
+# Configuration globale
+{
+    # Email pour Let's Encrypt (à configurer en production)
+    # email admin@your-domain.com
+    
+    # Serveur ACME pour Let's Encrypt (production)
+    # acme_ca https://acme-v02.api.letsencrypt.org/directory
+    
+    # Serveur ACME pour Let's Encrypt (staging - pour les tests)
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+    
+    # Désactiver les logs d'administration par défaut
+    admin off
+    
+    # Configuration des logs globaux
+    log {
+        level INFO
+    }
+}
+

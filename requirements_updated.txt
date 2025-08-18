@@ -1,0 +1,26 @@
+# Lab Creator - Requirements avec support RDP/VNC
+# Version mise à jour avec les nouvelles dépendances
+
+# Framework web
+Flask==2.3.3
+flask-cors==6.0.1
+flask-sqlalchemy==3.1.1
+
+# Base de données
+SQLAlchemy==2.0.43
+
+# WebSocket pour RDP/VNC
+websockets==15.0.1
+
+# Utilitaires système (existants)
+requests==2.31.0
+python-dotenv==1.0.0
+
+# Infrastructure (existants - à vérifier selon l'installation)
+# terraform-python==0.1.0  # Si utilisé
+# ansible-runner==2.3.4    # Si utilisé
+
+# Développement et tests (optionnel)
+pytest==7.4.2
+pytest-flask==1.2.0
+

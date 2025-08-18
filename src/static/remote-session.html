@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Distante - Lab Creator</title>
+    
+    <!-- Styles CSS -->
+    <link rel="stylesheet" href="/static/css/remote-desktop.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .session-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .session-toolbar {
+            background: #2d2d2d;
+            color: white;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #404040;
+            z-index: 1000;
+        }
+
+        .session-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .connection-badge {
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .session-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .toolbar-btn {
+            background: transparent;
+            border: 1px solid #555;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .toolbar-btn:hover {
+            background: #404040;
+            border-color: #666;
+        }
+
+        .toolbar-btn.danger:hover {
+            background: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .session-viewer {
+            flex: 1;
+            position: relative;
+            background: #000;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #333;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #dc3545;
+            color: white;
+            padding: 16px;
+            text-align: center;
+            margin: 20px;
+            border-radius: 4px;
+        }
+
+        .reconnect-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .reconnect-btn:hover {
+            background: #0056b3;
+        }
+
+        /* Styles pour le mode plein écran */
+        .session-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+        }
+
+        .session-container.fullscreen .session-toolbar {
+            display: none;
+        }
+
+        /* Styles pour les notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 4px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification.success {
+            background: #28a745;
+        }
+
+        .notification.error {
+            background: #dc3545;
+        }
+
+        .notification.warning {
+            background: #ffc107;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="session-container" id="sessionContainer">
+        <div class="session-toolbar" id="sessionToolbar">
+            <div class="session-info">
+                <span class="connection-badge" id="connectionBadge">CONNEXION</span>
+                <span id="sessionInfo">Chargement...</span>
+            </div>
+            <div class="session-controls">
+                <button class="toolbar-btn" id="fullscreenBtn" title="Plein écran">
+                    <i class="fas fa-expand"></i>
+                </button>
+                <button class="toolbar-btn" id="screenshotBtn" title="Capture d'écran">
+                    <i class="fas fa-camera"></i>
+                </button>
+                <button class="toolbar-btn" id="keyboardBtn" title="Clavier virtuel">
+                    <i class="fas fa-keyboard"></i>
+                </button>
+                <button class="toolbar-btn" id="settingsBtn" title="Paramètres">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <button class="toolbar-btn danger" id="disconnectBtn" title="Déconnecter">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="session-viewer" id="sessionViewer">
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-spinner"></div>
+                <div>Connexion en cours...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/novnc/lib/rfb.js"></script>
+    <script src="/static/components/VNCViewer.js"></script>
+    <script src="/static/components/RDPViewer.js"></script>
+
+    <script>
+        class RemoteSessionPage {
+            constructor() {
+                this.sessionData = null;
+                this.viewer = null;
+                this.isFullscreen = false;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 3;
+                
+                this.init();
+            }
+
+            async init() {
+                // Récupérer les paramètres de l'URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionId = urlParams.get('session_id');
+                const token = urlParams.get('token');
+                
+                if (!sessionId) {
+                    this.showError('ID de session manquant');
+                    return;
+                }
+
+                // Valider le token si présent
+                if (token && !await this.validateToken(sessionId, token)) {
+                    this.showError('Token d\'accès invalide ou expiré');
+                    return;
+                }
+
+                // Charger les données de session
+                await this.loadSessionData(sessionId);
+                
+                // Attacher les gestionnaires d'événements
+                this.attachEventListeners();
+                
+                // Démarrer la connexion
+                await this.startConnection();
+            }
+
+            async validateToken(sessionId, token) {
+                try {
+                    const response = await fetch(`/api/remote-access/validate-token`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ session_id: sessionId, token: token })
+                    });
+                    
+                    const result = await response.json();
+                    return result.success;
+                } catch (error) {
+                    console.error('Erreur validation token:', error);
+                    return false;
+                }
+            }
+
+            async loadSessionData(sessionId) {
+                try {
+                    const response = await fetch(`/api/remote-access/status/${sessionId}`);
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.sessionData = result;
+                        this.updateSessionInfo();
+                    } else {
+                        throw new Error(result.error || 'Session non trouvée');
+                    }
+                } catch (error) {
+                    this.showError(`Erreur de chargement: ${error.message}`);
+                }
+            }
+
+            updateSessionInfo() {
+                const sessionInfo = document.getElementById('sessionInfo');
+                const connectionBadge = document.getElementById('connectionBadge');
+                
+                if (this.sessionData) {
+                    sessionInfo.textContent = `${this.sessionData.connection_type.toUpperCase()} - Machine ${this.sessionData.machine_id}`;
+                    connectionBadge.textContent = this.sessionData.status.toUpperCase();
+                    connectionBadge.className = `connection-badge ${this.sessionData.status}`;
+                }
+            }
+
+            async startConnection() {
+                try {
+                    this.showLoading('Établissement de la connexion...');
+                    
+                    // Créer le viewer approprié
+                    if (this.sessionData.connection_type === 'vnc') {
+                        await this.createVNCViewer();
+                    } else if (this.sessionData.connection_type === 'rdp') {
+                        await this.createRDPViewer();
+                    } else {
+                        throw new Error('Type de connexion non supporté');
+                    }
+                    
+                    this.hideLoading();
+                    this.showNotification('Connexion établie', 'success');
+                    
+                } catch (error) {
+                    this.hideLoading();
+                    this.showError(`Erreur de connexion: ${error.message}`);
+                }
+            }
+
+            async createVNCViewer() {
+                const viewerContainer = document.getElementById('sessionViewer');
+                viewerContainer.innerHTML = '<div id="vncViewer" style="width: 100%; height: 100%;"></div>';
+                
+                // Utiliser le composant VNCViewer
+                this.viewer = new VNCViewer('vncViewer', {
+                    websocketUrl: this.getWebSocketUrl(),
+                    password: this.sessionData.password || '',
+                    onConnect: () => this.onViewerConnect(),
+                    onDisconnect: () => this.onViewerDisconnect(),
+                    onError: (error) => this.onViewerError(error)
+                });
+            }
+
+            async createRDPViewer() {
+                const viewerContainer = document.getElementById('sessionViewer');
+                viewerContainer.innerHTML = '<div id="rdpViewer" style="width: 100%; height: 100%;"></div>';
+                
+                // Utiliser le composant RDPViewer
+                this.viewer = new RDPViewer('rdpViewer', {
+                    websocketUrl: this.getWebSocketUrl(),
+                    username: this.sessionData.username || '',
+                    password: this.sessionData.password || '',
+                    onConnect: () => this.onViewerConnect(),
+                    onDisconnect: () => this.onViewerDisconnect(),
+                    onError: (error) => this.onViewerError(error)
+                });
+            }
+
+            getWebSocketUrl() {
+                // Construire l'URL WebSocket basée sur les données de session
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.host;
+                
+                if (this.sessionData.connection_type === 'vnc') {
+                    return `${protocol}//${host}/ws/vnc/${this.sessionData.session_id}`;
+                } else {
+                    return `${protocol}//${host}/ws/rdp/${this.sessionData.session_id}`;
+                }
+            }
+
+            attachEventListeners() {
+                // Plein écran
+                document.getElementById('fullscreenBtn').addEventListener('click', () => {
+                    this.toggleFullscreen();
+                });
+
+                // Capture d'écran
+                document.getElementById('screenshotBtn').addEventListener('click', () => {
+                    this.takeScreenshot();
+                });
+
+                // Clavier virtuel
+                document.getElementById('keyboardBtn').addEventListener('click', () => {
+                    this.toggleVirtualKeyboard();
+                });
+
+                // Paramètres
+                document.getElementById('settingsBtn').addEventListener('click', () => {
+                    this.showSettings();
+                });
+
+                // Déconnexion
+                document.getElementById('disconnectBtn').addEventListener('click', () => {
+                    this.disconnect();
+                });
+
+                // Gestion des raccourcis clavier
+                document.addEventListener('keydown', (e) => {
+                    this.handleKeyboardShortcuts(e);
+                });
+
+                // Gestion de la fermeture de la fenêtre
+                window.addEventListener('beforeunload', () => {
+                    this.disconnect();
+                });
+
+                // Gestion du redimensionnement
+                window.addEventListener('resize', () => {
+                    if (this.viewer && this.viewer.resize) {
+                        this.viewer.resize();
+                    }
+                });
+            }
+
+            toggleFullscreen() {
+                const container = document.getElementById('sessionContainer');
+                
+                if (!this.isFullscreen) {
+                    if (container.requestFullscreen) {
+                        container.requestFullscreen();
+                    } else if (container.webkitRequestFullscreen) {
+                        container.webkitRequestFullscreen();
+                    } else if (container.msRequestFullscreen) {
+                        container.msRequestFullscreen();
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                }
+            }
+
+            takeScreenshot() {
+                if (this.viewer && this.viewer.takeScreenshot) {
+                    this.viewer.takeScreenshot();
+                    this.showNotification('Capture d\'écran prise', 'success');
+                } else {
+                    this.showNotification('Capture d\'écran non disponible', 'warning');
+                }
+            }
+
+            toggleVirtualKeyboard() {
+                // Implémenter le clavier virtuel
+                this.showNotification('Clavier virtuel non encore implémenté', 'warning');
+            }
+
+            showSettings() {
+                // Implémenter les paramètres
+                this.showNotification('Paramètres non encore implémentés', 'warning');
+            }
+
+            async disconnect() {
+                try {
+                    if (this.viewer && this.viewer.disconnect) {
+                        this.viewer.disconnect();
+                    }
+                    
+                    // Notifier le serveur
+                    await fetch(`/api/remote-access/disconnect/${this.sessionData.session_id}`, {
+                        method: 'POST'
+                    });
+                    
+                    // Fermer la fenêtre
+                    window.close();
+                } catch (error) {
+                    console.error('Erreur lors de la déconnexion:', error);
+                    window.close();
+                }
+            }
+
+            handleKeyboardShortcuts(e) {
+                // Ctrl+Alt+F pour plein écran
+                if (e.ctrlKey && e.altKey && e.key === 'f') {
+                    e.preventDefault();
+                    this.toggleFullscreen();
+                }
+                
+                // Ctrl+Alt+D pour déconnecter
+                if (e.ctrlKey && e.altKey && e.key === 'd') {
+                    e.preventDefault();
+                    this.disconnect();
+                }
+            }
+
+            onViewerConnect() {
+                this.sessionData.status = 'connected';
+                this.updateSessionInfo();
+                this.showNotification('Connexion établie', 'success');
+                this.reconnectAttempts = 0;
+            }
+
+            onViewerDisconnect() {
+                this.sessionData.status = 'disconnected';
+                this.updateSessionInfo();
+                
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.attemptReconnect();
+                } else {
+                    this.showError('Connexion perdue. Impossible de se reconnecter.');
+                }
+            }
+
+            onViewerError(error) {
+                console.error('Erreur du viewer:', error);
+                this.showError(`Erreur: ${error.message || error}`);
+            }
+
+            async attemptReconnect() {
+                this.reconnectAttempts++;
+                this.showLoading(`Tentative de reconnexion ${this.reconnectAttempts}/${this.maxReconnectAttempts}...`);
+                
+                setTimeout(async () => {
+                    try {
+                        await this.startConnection();
+                    } catch (error) {
+                        console.error('Échec de la reconnexion:', error);
+                        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                            this.attemptReconnect();
+                        } else {
+                            this.hideLoading();
+                            this.showError('Impossible de se reconnecter après plusieurs tentatives.');
+                        }
+                    }
+                }, 2000);
+            }
+
+            showLoading(message) {
+                const overlay = document.getElementById('loadingOverlay');
+                overlay.style.display = 'flex';
+                overlay.querySelector('div:last-child').textContent = message;
+            }
+
+            hideLoading() {
+                const overlay = document.getElementById('loadingOverlay');
+                overlay.style.display = 'none';
+            }
+
+            showError(message) {
+                const viewer = document.getElementById('sessionViewer');
+                viewer.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div>${message}</div>
+                        <button class="reconnect-btn" onclick="location.reload()">
+                            Réessayer
+                        </button>
+                    </div>
+                `;
+            }
+
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+        }
+
+        // Démarrer l'application
+        document.addEventListener('DOMContentLoaded', () => {
+            new RemoteSessionPage();
+        });
+
+        // Gestion du plein écran
+        document.addEventListener('fullscreenchange', () => {
+            const container = document.getElementById('sessionContainer');
+            const toolbar = document.getElementById('sessionToolbar');
+            
+            if (document.fullscreenElement) {
+                container.classList.add('fullscreen');
+                toolbar.style.display = 'none';
+            } else {
+                container.classList.remove('fullscreen');
+                toolbar.style.display = 'flex';
+            }
+        });
+    </script>
+</body>
+</html>
+
