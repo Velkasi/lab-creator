@@ -107,6 +107,6 @@ echo "\nL'application sera accessible via http://localhost:5000 (ou l'adresse co
 
 
 # Copier le fichier requirements_updated.txt dans le répertoire de l'application
-cp /home/ubuntu/requirements_updated.txt "$APP_DIR" || error_exit "Échec de la copie de requirements_updated.txt."
+# cp /home/ubuntu/requirements_updated.txt "$APP_DIR" || error_exit "Échec de la copie de requirements_updated.txt."
 
 
