@@ -80,7 +80,7 @@ Ce projet représente une amélioration majeure de Lab Creator avec l'ajout d'un
 ### Installation
 ```bash
 # 1. Extraire l'archive
-tar -xzf lab-creator-main.zip
+unzip lab-creator-main.zip
 cd lab-lab-creator-main
 
 # 2. Installer les dépendances
