@@ -27,7 +27,7 @@ pytest-flask==1.2.0
 
 
 pyyaml
-
+psutil
 
 
 uvicorn
