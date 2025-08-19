@@ -5,6 +5,10 @@ import threading
 import logging
 from typing import Dict, Optional
 import uuid
+import uvicorn
+from starlette.applications import Starlette
+from starlette.routing import WebSocketRoute
+from starlette.websockets import WebSocket
 
 logger = logging.getLogger(__name__)
 
@@ -12,13 +16,13 @@ class WebSocketProxy:
     def __init__(self):
         self.active_connections: Dict[str, dict] = {}
         
-    async def handle_vnc_connection(self, websocket, path):
+    async def handle_vnc_connection(self, websocket: WebSocket):
         """Handle VNC WebSocket connection"""
         try:
             # Extract connection parameters from path
             # Expected format: /vnc/{lab_id}/{machine_id}
-            path_parts = path.strip('/').split('/')
-            if len(path_parts) != 3 or path_parts[0] != 'vnc':
+            path_parts = websocket.url.path.strip(\"/\").split(\"/\")
+            if len(path_parts) != 3 or path_parts[0] != \"vnc\":
                 await websocket.close(code=4000, reason="Invalid path format")
                 return
                 
@@ -31,8 +35,8 @@ class WebSocketProxy:
                 await websocket.close(code=4001, reason="Machine not found")
                 return
                 
-            vnc_host = machine_info.get('ip_address', 'localhost')
-            vnc_port = machine_info.get('vnc_port', 5901)
+            vnc_host = machine_info.get(\"ip_address\", \"localhost\")
+            vnc_port = machine_info.get(\"vnc_port\", 5901)
             
             # Create connection ID
             connection_id = str(uuid.uuid4())
@@ -45,11 +49,11 @@ class WebSocketProxy:
                 
                 # Store connection info
                 self.active_connections[connection_id] = {
-                    'type': 'vnc',
-                    'websocket': websocket,
-                    'socket': vnc_socket,
-                    'machine_id': machine_id,
-                    'lab_id': lab_id
+                    \"type\": \"vnc\",
+                    \"websocket\": websocket,
+                    \"socket\": vnc_socket,
+                    \"machine_id\": machine_id,
+                    \"lab_id\": lab_id
                 }
                 
                 # Start bidirectional data forwarding
@@ -66,13 +70,13 @@ class WebSocketProxy:
             if connection_id in self.active_connections:
                 self._cleanup_connection(connection_id)
     
-    async def handle_rdp_connection(self, websocket, path):
+    async def handle_rdp_connection(self, websocket: WebSocket):
         """Handle RDP WebSocket connection (via FreeRDP proxy)"""
         try:
             # Extract connection parameters from path
             # Expected format: /rdp/{lab_id}/{machine_id}
-            path_parts = path.strip('/').split('/')
-            if len(path_parts) != 3 or path_parts[0] != 'rdp':
+            path_parts = websocket.url.path.strip(\"/\").split(\"/\")
+            if len(path_parts) != 3 or path_parts[0] != \"rdp\":
                 await websocket.close(code=4000, reason="Invalid path format")
                 return
                 
@@ -85,8 +89,8 @@ class WebSocketProxy:
                 await websocket.close(code=4001, reason="Machine not found")
                 return
                 
-            rdp_host = machine_info.get('ip_address', 'localhost')
-            rdp_port = machine_info.get('rdp_port', 3389)
+            rdp_host = machine_info.get(\"ip_address\", \"localhost\")
+            rdp_port = machine_info.get(\"rdp_port\", 3389)
             
             # Create connection ID
             connection_id = str(uuid.uuid4())
@@ -101,7 +105,7 @@ class WebSocketProxy:
             logger.error(f"Error in RDP connection handler: {e}")
             await websocket.close(code=4003, reason="Internal server error")
     
-    async def _forward_data(self, websocket, socket_conn, connection_id):
+    async def _forward_data(self, websocket: WebSocket, socket_conn, connection_id):
         """Forward data bidirectionally between WebSocket and socket"""
         try:
             # Create tasks for both directions
@@ -127,21 +131,17 @@ class WebSocketProxy:
         finally:
             self._cleanup_connection(connection_id)
     
-    async def _forward_ws_to_socket(self, websocket, socket_conn, connection_id):
+    async def _forward_ws_to_socket(self, websocket: WebSocket, socket_conn, connection_id):
         """Forward data from WebSocket to socket"""
         try:
-            async for message in websocket:
-                if isinstance(message, bytes):
-                    socket_conn.send(message)
-                else:
-                    # Handle text messages if needed
-                    socket_conn.send(message.encode())
-        except websockets.exceptions.ConnectionClosed:
+            async for message in websocket.iter_bytes():
+                socket_conn.send(message)
+        except websockets.exceptions.ConnectionClosedOK:
             logger.info(f"WebSocket connection closed for {connection_id}")
         except Exception as e:
             logger.error(f"Error forwarding WS to socket: {e}")
     
-    async def _forward_socket_to_ws(self, websocket, socket_conn, connection_id):
+    async def _forward_socket_to_ws(self, websocket: WebSocket, socket_conn, connection_id):
         """Forward data from socket to WebSocket"""
         try:
             loop = asyncio.get_event_loop()
@@ -150,7 +150,7 @@ class WebSocketProxy:
                 data = await loop.run_in_executor(None, socket_conn.recv, 4096)
                 if not data:
                     break
-                await websocket.send(data)
+                await websocket.send_bytes(data)
         except Exception as e:
             logger.error(f"Error forwarding socket to WS: {e}")
     
@@ -161,9 +161,9 @@ class WebSocketProxy:
             machine = Machine.query.filter_by(id=int(machine_id), lab_id=int(lab_id)).first()
             if machine:
                 return {
-                    'ip_address': machine.ip_address,
-                    'vnc_port': 5901,  # Default VNC port
-                    'rdp_port': 3389,  # Default RDP port
+                    \"ip_address\": machine.ip_address,
+                    \"vnc_port\": 5901,  # Default VNC port
+                    \"rdp_port\": 3389,  # Default RDP port
                 }
             return None
         except Exception as e:
@@ -175,8 +175,8 @@ class WebSocketProxy:
         if connection_id in self.active_connections:
             conn_info = self.active_connections[connection_id]
             try:
-                if 'socket' in conn_info:
-                    conn_info['socket'].close()
+                if \"socket\" in conn_info:
+                    conn_info[\"socket\"].close()
             except:
                 pass
             del self.active_connections[connection_id]
@@ -185,28 +185,25 @@ class WebSocketProxy:
 # Global proxy instance
 proxy = WebSocketProxy()
 
-def start_websocket_server(host='0.0.0.0', port=8765):
-    """Start the WebSocket server"""
-    async def router(websocket, path):
-        if path.startswith('/vnc/'):
-            await proxy.handle_vnc_connection(websocket, path)
-        elif path.startswith('/rdp/'):
-            await proxy.handle_rdp_connection(websocket, path)
-        else:
-            await websocket.close(code=4000, reason="Unknown path")
-    
-    return websockets.serve(router, host, port)
+async def vnc_websocket_endpoint(websocket: WebSocket):
+    await proxy.handle_vnc_connection(websocket)
 
-def run_websocket_server_thread(host='0.0.0.0', port=8765):
-    """Run WebSocket server in a separate thread"""
+async def rdp_websocket_endpoint(websocket: WebSocket):
+    await proxy.handle_rdp_connection(websocket)
+
+websocket_app = Starlette(routes=[
+    WebSocketRoute("/vnc/{lab_id}/{machine_id}", vnc_websocket_endpoint),
+    WebSocketRoute("/rdp/{lab_id}/{machine_id}", rdp_websocket_endpoint),
+])
+
+def run_websocket_server_thread(host=\"0.0.0.0\", port=8765):
+    """Run WebSocket server in a separate thread using uvicorn"""
     def run_server():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        start_server = websockets.serve(router, host, port)
-        loop.run_until_complete(start_server)
-        loop.run_forever()
-    
+        uvicorn.run(websocket_app, host=host, port=port, log_level="info")
+
     thread = threading.Thread(target=run_server, daemon=True)
     thread.start()
     logger.info(f"WebSocket server started on {host}:{port}")
     return thread
+
+
