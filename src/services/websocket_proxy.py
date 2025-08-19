@@ -202,8 +202,7 @@ def run_websocket_server_thread(host='0.0.0.0', port=8765):
     def run_server():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
-        start_server = start_websocket_server(host, port)
+        start_server = websockets.serve(router, host, port)
         loop.run_until_complete(start_server)
         loop.run_forever()
     
@@ -211,4 +210,3 @@ def run_websocket_server_thread(host='0.0.0.0', port=8765):
     thread.start()
     logger.info(f"WebSocket server started on {host}:{port}")
     return thread
-
