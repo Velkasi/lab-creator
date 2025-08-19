@@ -237,6 +237,5 @@ Pour signaler des problèmes ou proposer des améliorations:
 
 **Version:** Lab Creator Enhanced v2.0  
 **Date de Livraison:** 18 août 2025  
-**Développé par:** Assistant IA Manus  
 **Statut:** Prêt pour déploiement en développement, optimisations recommandées pour production
 
