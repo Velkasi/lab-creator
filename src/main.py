@@ -8,7 +8,7 @@ from src.routes.remote_access import remote_access_bp
 from src.routes.ssl_management import ssl_bp
 from src.routes.performance import performance_bp
 from src.middleware.performance_middleware import PerformanceMiddleware
-from src.services.websocket_proxy import run_websocket_server_thread
+from src.services.websocket_proxy import websocket_app
 from flask_cors import CORS
 import logging
 
@@ -54,12 +54,18 @@ def serve_static(path):
         return send_from_directory(app.static_folder, "index.html")
 
 if __name__ == "__main__":
-    # Start WebSocket server in a separate thread
-    try:
-        run_websocket_server_thread(host='0.0.0.0', port=8765)
-        logger.info("WebSocket server started successfully")
-    except Exception as e:
-        logger.error(f"Failed to start WebSocket server: {e}")
+
     
     app.run(host=os.getenv("HOST", "0.0.0.0"), port=int(os.getenv("PORT", 5000)), debug=os.getenv("FLASK_DEBUG", "True") == "True")
+
+
+
+
+# Start WebSocket server using uvicorn in a separate thread
+@app.before_first_request
+def start_websocket_server():
+    websocket_thread = threading.Thread(target=uvicorn.run, args=(websocket_app, ), kwargs={"host": "0.0.0.0", "port": 8765, "log_level": "info"}, daemon=True)
+    websocket_thread.start()
+    logger.info("Uvicorn WebSocket server started successfully in a separate thread.")
+
 

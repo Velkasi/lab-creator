@@ -64,22 +64,46 @@ def update_lab(lab_id):
     lab.provider = data.get("provider", lab.provider)
     lab.provider_config = json.dumps(data.get("provider_config", {}))
     
-    # Update machines (simple replacement for now)
-    db.session.query(Machine).filter_by(lab_id=lab_id).delete()
+    # Update machines: remove old ones, add new ones, or update existing ones
+    existing_machine_ids = [m.id for m in lab.machines]
+    updated_machine_ids = []
+
     for machine_data in data.get("machines", []):
-        new_machine = Machine(
-            lab_id=lab.id,
-            name=machine_data["name"],
-            os=machine_data["os"],
-            cpu=machine_data.get("cpu", 2),
-            ram=machine_data.get("ram", 4),
-            storage=machine_data.get("storage", 20),
-            role=machine_data.get("role"),
-            software_config=json.dumps(machine_data.get("software", [])),
-            custom_playbooks=json.dumps(machine_data.get("custom_playbooks", []))
-        )
-        db.session.add(new_machine)
-        
+        machine_id = machine_data.get("id")
+        if machine_id and machine_id in existing_machine_ids:
+            # Update existing machine
+            machine = Machine.query.get(machine_id)
+            if machine:
+                machine.name = machine_data.get("name", machine.name)
+                machine.os = machine_data.get("os", machine.os)
+                machine.cpu = machine_data.get("cpu", machine.cpu)
+                machine.ram = machine_data.get("ram", machine.ram)
+                machine.storage = machine_data.get("storage", machine.storage)
+                machine.role = machine_data.get("role", machine.role)
+                machine.software_config = json.dumps(machine_data.get("software", []))
+                machine.custom_playbooks = json.dumps(machine_data.get("custom_playbooks", []))
+                updated_machine_ids.append(machine_id)
+        else:
+            # Add new machine
+            new_machine = Machine(
+                lab_id=lab.id,
+                name=machine_data["name"],
+                os=machine_data["os"],
+                cpu=machine_data.get("cpu", 2),
+                ram=machine_data.get("ram", 4),
+                storage=machine_data.get("storage", 20),
+                role=machine_data.get("role"),
+                software_config=json.dumps(machine_data.get("software", [])),
+                custom_playbooks=json.dumps(machine_data.get("custom_playbooks", []))
+            )
+            db.session.add(new_machine)
+
+    # Remove machines that are no longer in the updated list
+    for machine_id in existing_machine_ids:
+        if machine_id not in updated_machine_ids:
+            machine_to_delete = Machine.query.get(machine_id)
+            if machine_to_delete:
+                db.session.delete(machine_to_delete)
     db.session.commit()
     return jsonify(lab.to_dict()), 200
 
