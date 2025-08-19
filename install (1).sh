@@ -55,10 +55,10 @@ echo "Dépendances système installées avec succès."
 
 
 
-# 3. Extraction de l'archive de l'application
+# 3. Extraction de l'archive de l'application (modifier le chemin en fonction de votre utilisateur)
 echo "Extraction de l'archive de l'application..."
-APP_ARCHIVE="/home/user/Téléchargements/lab-creator-main.zip"
-APP_DIR="/home/user/Téléchargements/lab-creator-main"
+APP_ARCHIVE="/home/test/Téléchargements/lab-creator-main.zip"
+APP_DIR="/home/test/Téléchargements/lab-creator-main"
 
 if [ ! -f "$APP_ARCHIVE" ]; then
     error_exit "L'archive de l'application n'a pas été trouvée à $APP_ARCHIVE."
@@ -71,7 +71,7 @@ echo "Archive extraite avec succès dans $APP_DIR."
 cd "$APP_DIR" || error_exit "Impossible de naviguer vers le répertoire de l'application."
 
 # Copier le fichier requirements_updated.txt dans le répertoire de l'application
-cp /home/ubuntu/requirements_updated.txt "$APP_DIR" || error_exit "Échec de la copie de requirements_updated.txt."
+# cp /home/ubuntu/requirements_updated.txt "$APP_DIR" || error_exit "Échec de la copie de requirements_updated.txt."
 
 # 4. Créer et activer l'environnement virtuel Python
 echo "Création et activation de l'environnement virtuel Python..."
@@ -81,7 +81,7 @@ echo "Environnement virtuel activé."
 
 # 5. Installer les dépendances Python
 echo "Installation des dépendances Python..."
-pip install -r requirements_updated.txt || error_exit "Échec de l'installation des dépendances Python."
+pip install -r "$APP_DIR/requirements_updated.txt" || error_exit "Échec de l'installation des dépendances Python."
 echo "Dépendances Python installées avec succès."
 
 # 6. Configurer l'environnement
