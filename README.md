@@ -81,7 +81,7 @@ Ce projet représente une amélioration majeure de Lab Creator avec l'ajout d'un
 ```bash
 # 1. Extraire l'archive
 unzip lab-creator-main.zip
-cd lab-lab-creator-main
+cd lab-creator-main
 
 # 2. Installer les dépendances
 python3 -m venv venv
